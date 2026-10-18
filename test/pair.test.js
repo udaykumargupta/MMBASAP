@@ -52,6 +52,22 @@ test('blob storage treats the SDK’s “does not exist” error as a missing fi
   await assert.rejects(broken.exists('mmbasap/AAAAAAAAAAAAAAAA/a.pdf'), /network down/);
 });
 
+test('without a token, blob calls carry no token so the SDK uses OIDC', async () => {
+  const { blobFiles } = await import('../lib/files.js');
+  const calls = [];
+  const sdk = async () => ({
+    issueSignedToken: async (o) => { calls.push(o); return { delegationToken: 'd', clientSigningToken: 'c' }; },
+    presignUrl: async () => ({ presignedUrl: 'https://blob.example/get' }),
+    head: async (_id, o) => { calls.push(o); },
+    del: async (_ids, o) => { calls.push(o); },
+  });
+  const files = blobFiles({ sdk });
+  await files.downloadUrl('mmbasap/AAAAAAAAAAAAAAAA/a.pdf');
+  await files.exists('mmbasap/AAAAAAAAAAAAAAAA/a.pdf');
+  await files.remove(['mmbasap/AAAAAAAAAAAAAAAA/a.pdf']);
+  assert.ok(calls.every((o) => !('token' in o)), JSON.stringify(calls));
+});
+
 test('blob upload URLs are signed for exactly the declared size', async () => {
   const { blobFiles } = await import('../lib/files.js');
   const seen = [];

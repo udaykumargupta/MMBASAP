@@ -60,7 +60,9 @@ You don't need `npm install` locally. The two npm packages (`@neondatabase/serve
    - **Neon** (Postgres): connect it through the Storage tab, or create it at neon.tech and paste its connection string into an environment variable named `DATABASE_URL`.
      - **Keep the database and the functions in the same region**, because every request makes several database queries. `vercel.json` runs the functions in `cle1` (Cleveland), next to Neon's **AWS US East 2 (Ohio)**.
      - If your Neon database is elsewhere, change `regions` in `vercel.json` to match, for example `sin1` for Singapore or `iad1` for US East 1.
-   - **Blob:** access **Private**, then **Connect**. This adds `BLOB_READ_WRITE_TOKEN`.
+   - **Blob:** access **Private**, then **Connect** it to the project.
+     - Vercel connects it by OIDC and adds `BLOB_STORE_ID`; MMBASAP picks up Vercel's per-request token by itself.
+     - A `BLOB_READ_WRITE_TOKEN` also works if you prefer one.
 3. **Settings → Environment Variables (recommended):**
    - `CRON_SECRET`: any random string. With it, only Vercel's daily job can run the cleanup. Without it, cleanup still runs, but anyone can trigger it; it only deletes what has expired.
    - **Free-tier limits.** They aim to keep a public MMBASAP inside Vercel Blob's free tier (1 GB stored, 10 GB downloaded a month):

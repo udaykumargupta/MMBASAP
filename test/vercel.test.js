@@ -21,7 +21,7 @@ test('an empty deployment needs only the database and Blob store, and serves not
   const call = await serve({});
   const cfg = await call('GET', '/api/public/config');
   assert.equal(cfg.status, 200);
-  assert.deepEqual(cfg.json.setupMissing, ['DATABASE_URL (connect a Neon database)', 'BLOB_READ_WRITE_TOKEN (connect a private Blob store)']);
+  assert.deepEqual(cfg.json.setupMissing, ['DATABASE_URL (connect a Neon database)', 'BLOB_STORE_ID (connect a private Blob store)']);
   assert.equal(cfg.json.owner.available, false);
   assert.equal((await call('GET', '/api/rooms/AAAAAAAAAAAAAAAA')).status, 503);
   assert.equal((await call('POST', '/api/login', { passcode: 'x' })).status, 503);
@@ -34,6 +34,11 @@ test('storage alone: pair-your-phone works for everyone, Auto SMS stays off', as
   assert.equal(cfg.json.owner.available, false);
   assert.deepEqual(cfg.json.channels.filter((c) => c.enabled).map((c) => c.id), ['whatsapp', 'sms']);
   assert.equal((await call('POST', '/api/send', { to: '9876543210', text: 'hi' })).status, 404);
+});
+
+test('a Blob store connected by OIDC (BLOB_STORE_ID, no token) counts as connected', async () => {
+  const call = await serve({ DATABASE_URL: 'postgres://x', BLOB_STORE_ID: 'store_abc' });
+  assert.deepEqual((await call('GET', '/api/public/config')).json.setupMissing, []);
 });
 
 test('POSTGRES_URL is accepted as the database', async () => {
