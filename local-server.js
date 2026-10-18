@@ -13,6 +13,8 @@ import { createSessions, MIN_PASSCODE_LENGTH, MIN_SECRET_LENGTH, SESSION_TTL_MS 
 import { createChannels, smsFromEnv } from './lib/channels/index.js';
 import { createFiles } from './lib/files.js';
 import { createShares } from './lib/shares.js';
+import { megabytes } from './api/index.js';
+import { createRooms } from './lib/rooms.js';
 
 const ROOT = path.dirname(fileURLToPath(import.meta.url));
 const ENV_FILE = path.join(ROOT, '.env');
@@ -39,7 +41,10 @@ if (passcode) {
 }
 
 // ------------------------------------------------------------------ parts
+// LAN_HOST (e.g. 192.168.1.20) lets other devices on the same Wi-Fi reach this Mac.
+const lanHost = env('LAN_HOST');
 const shares = createShares({ env: process.env, dataDir: DATA });
+const rooms = createRooms({ env: process.env, dataDir: DATA });
 // Local file links are signed with JWT_SECRET, or a fresh key each run when there is none.
 const files = createFiles({ env: process.env, dataDir: DATA, secret: secret || crypto.randomBytes(32).toString('hex') });
 const sms = smsFromEnv(process.env);
@@ -47,15 +52,19 @@ const handle = createHandler({
   publicDir: PUBLIC,
   auth,
   shares,
+  rooms,
   files,
   channels: createChannels({ sms }),
   baseUrl: env('PUBLIC_BASE_URL'),
   dailyLimit: Number(env('DAILY_LIMIT')) || 50,
+  publicStorageBytes: megabytes(env('PUBLIC_STORAGE_MB'), 600),
+  publicDailyDownloadBytes: megabytes(env('PUBLIC_DAILY_DOWNLOAD_MB'), 300),
+  // Reachable from the Wi-Fi: the owner's Auto SMS then needs the passcode, like on Vercel.
+  requireAuth: Boolean(lanHost),
 });
 
 // Answer requests addressed to this machine only (blocks DNS-rebinding reads).
 // LAN_HOST (e.g. 192.168.1.20) lets a phone on the same Wi-Fi open share links.
-const lanHost = env('LAN_HOST');
 const ALLOWED_HOSTS = new Set([`localhost:${PORT}`, `127.0.0.1:${PORT}`, `[::1]:${PORT}`, ...(lanHost ? [`${lanHost}:${PORT}`] : [])]);
 const server = http.createServer((req, res) => {
   if (!ALLOWED_HOSTS.has(req.headers.host)) return send(res, 421, 'Misdirected request', 'text/plain');
@@ -64,8 +73,8 @@ const server = http.createServer((req, res) => {
 
 server.listen(PORT, lanHost ? '0.0.0.0' : '127.0.0.1', () => {
   console.log(`MMBASAP running at ${URL_BASE}`);
-  console.log(`Sign-in: ${passcode ? 'passcode' : 'off (local mode — set APP_PASSCODE and JWT_SECRET in .env to require one)'}`);
-  console.log(`SMS:     ${sms.provider === 'console' ? 'dry run — messages are printed here (set SMSGATE_USER/SMSGATE_PASS to send for real)' : 'your phone via SMS Gateway for Android'}`);
+  console.log('Pair your phone: open this page, then scan the QR with your phone (needs https or localhost on the phone; see README)');
+  console.log(`Auto SMS: ${passcode ? 'owner passcode required' : lanHost ? 'off — set APP_PASSCODE and JWT_SECRET to use it with LAN_HOST' : 'open to this Mac (local mode)'}; ${sms.provider === 'console' ? 'dry run — printed here (set SMSGATE_USER/SMSGATE_PASS to send for real)' : 'sent by your phone via SMS Gateway for Android'}`);
   console.log(`Data:    ${shares.kind === 'database' ? 'Neon Postgres (DATABASE_URL)' : shares.file}; files: ${files.kind === 'blob' ? 'Vercel Blob' : path.join(DATA, 'files')}`);
   if (process.argv.includes('--open')) execFile('/usr/bin/open', [URL_BASE], () => {});
 });

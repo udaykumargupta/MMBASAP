@@ -5,6 +5,7 @@
   "regions": [
     "bom1"
   ],
+  "cleanUrls": true,
   "functions": {
     "api/index.js": {
       "includeFiles": "public/js/sms.js"

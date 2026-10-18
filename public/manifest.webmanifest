@@ -1,0 +1,13 @@
+{
+  "name": "MMBASAP",
+  "short_name": "MMBASAP",
+  "description": "Messages from your laptop, ready to send on WhatsApp or SMS",
+  "start_url": "/phone",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#0e1014",
+  "theme_color": "#0e1014",
+  "icons": [
+    { "src": "/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }
+  ]
+}

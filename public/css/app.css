@@ -107,7 +107,7 @@ a { color: var(--accent); }
 }
 .brand { display: flex; align-items: center; gap: 10px; font-size: 17px; font-weight: 650; letter-spacing: -.01em; }
 .brand-mark svg { width: 26px; height: 26px; display: block; }
-.topbar-actions { margin-left: auto; display: flex; gap: 4px; }
+.topbar-actions { margin-left: auto; display: flex; align-items: center; gap: 6px; }
 
 /* ---------------------------------------------------------------- layout */
 .main { max-width: 1040px; margin: 0 auto; padding: 36px var(--gutter) 64px; }
@@ -296,3 +296,72 @@ a { color: var(--accent); }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation: none !important; transition: none !important; }
 }
+
+/* ------------------------------------------------------- pair your phone */
+.btn.small { min-height: 34px; padding: 0 12px; font-size: 13px; }
+.muted { color: var(--text-2); }
+.chip-lock .icon { width: 14px; height: 14px; }
+.pair-row {
+  display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+  padding: 10px 12px; border-radius: var(--r-ctl); background: var(--surface-2); font-size: 14px;
+}
+.pair-text { flex: 1; min-width: 160px; color: var(--text-2); }
+.pair-dot { width: 10px; height: 10px; border-radius: 50%; background: var(--busy); flex: none; box-shadow: 0 0 0 3px var(--busy-weak); }
+.pair-dot.on { background: var(--ok); box-shadow: 0 0 0 3px var(--ok-weak); }
+.qr-box {
+  display: grid; grid-template-columns: 168px minmax(0, 1fr); gap: 16px; align-items: center;
+  padding: 14px; border: 1px dashed var(--accent); border-radius: var(--r-ctl); background: var(--accent-weak);
+}
+.qr { background: #fff; border-radius: 8px; padding: 4px; line-height: 0; }
+.qr svg { width: 100%; height: auto; display: block; }
+.qr-steps { display: flex; flex-direction: column; gap: 6px; font-size: 14px; }
+.qr-steps ol { margin: 0; padding-left: 18px; color: var(--text-2); }
+.qr-steps .hint { display: flex; gap: 6px; align-items: center; }
+.qr-steps .hint .icon { width: 14px; height: 14px; }
+@media (max-width: 479px) { .qr-box { grid-template-columns: 1fr; } .qr { max-width: 220px; justify-self: center; width: 100%; } }
+.history-ch { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; color: var(--text-3); margin-right: 8px; }
+
+.dialog {
+  width: min(420px, calc(100% - 32px)); border: 1px solid var(--line); border-radius: var(--r-card);
+  background: var(--surface); color: var(--text); padding: 20px; box-shadow: var(--shadow);
+}
+.dialog::backdrop { background: rgba(0,0,0,.5); }
+.dialog-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
+.dialog-head h2 { font-size: 18px; }
+.dialog .passcode { margin-top: 14px; display: flex; flex-direction: column; gap: 8px; }
+
+/* ------------------------------------------------------------ phone page */
+.boot.single { grid-template-columns: 1fr; max-width: 560px; }
+.phone-main { max-width: 560px; padding-top: 20px; }
+.phone-status { font-size: 13px; font-weight: 600; color: var(--text-3); }
+.phone-status.ok { color: var(--ok); }
+.phone-status.bad { color: var(--bad); }
+.phone-list { display: flex; flex-direction: column; gap: 14px; }
+.phone-empty {
+  display: flex; flex-direction: column; align-items: center; text-align: center; gap: 8px;
+  padding: 36px 20px; color: var(--text-2);
+}
+.phone-empty strong { color: var(--text); font-size: 17px; }
+.phone-empty-icon .icon { width: 40px; height: 40px; color: var(--accent); }
+.phone-card { gap: 12px; }
+.phone-card.done { opacity: .55; }
+.phone-card.done .phone-actions .btn:not(.phone-open) { display: none; }
+.phone-card-head { display: flex; align-items: center; gap: 10px; }
+.phone-to { flex: 1; min-width: 0; font-size: 16px; font-variant-numeric: tabular-nums; }
+.phone-card-head time { color: var(--text-3); font-size: 13px; }
+.badge { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; padding: 3px 8px; border-radius: 999px; }
+.badge.wa { background: rgba(37,211,102,.16); color: #1fae55; }
+:root[data-theme="dark"] .badge.wa { color: #4ade80; }
+.badge.sms { background: var(--accent-weak); color: var(--accent); }
+.phone-text { white-space: pre-wrap; word-break: break-word; max-height: 220px; overflow: auto; }
+.phone-files { display: flex; flex-direction: column; gap: 6px; }
+.phone-files li { display: flex; align-items: center; gap: 8px; font-size: 14px; }
+.phone-files .file-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.phone-actions { display: flex; flex-direction: column; gap: 8px; }
+.phone-open { min-height: 52px; font-size: 16px; text-decoration: none; }
+.phone-note { font-size: 13px; color: var(--text-3); }
+.phone-note:empty { display: none; }
+.phone-link { font-size: 14px; }
+.bad-text { color: var(--bad); }
+.toast.ok { background: var(--ok); color: #04150d; }
+:root[data-theme="light"] .toast.ok { color: #fff; }

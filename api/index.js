@@ -1,39 +1,59 @@
 // Vercel entry point. vercel.json rewrites /api/* and /s/* here; the files in
-// public/ are served by Vercel's CDN. Same handler as the local server, but a
-// deployment fails closed: until the passcode, session secret, database, file
-// store and SMS gateway are configured, it serves nothing but the setup list.
+// public/ are served by Vercel's CDN. Same handler as the local server.
+//
+// Required: a Neon database and a private Blob store — until both are
+// connected the deployment serves nothing but the setup list.
+// Optional: the owner's automatic SMS. It switches on only when APP_PASSCODE,
+// JWT_SECRET and the phone gateway login (SMSGATE_USER/SMSGATE_PASS) are all set.
 import { createHandler } from '../lib/app.js';
 import { createSessions, MIN_PASSCODE_LENGTH, MIN_SECRET_LENGTH, SESSION_TTL_MS } from '../lib/auth.js';
-import { createChannels, smsFromEnv, smsSetupMissing } from '../lib/channels/index.js';
+import { createChannels, smsConfigured, smsFromEnv } from '../lib/channels/index.js';
 import { blobFiles } from '../lib/files.js';
+import { neonRooms } from '../lib/rooms.js';
 import { databaseUrl, neonShares } from '../lib/shares.js';
+
+/** '' → the default; 0 is allowed (turns public files off). */
+export function megabytes(raw, fallback) {
+  const n = String(raw ?? '').trim() === '' ? fallback : Number(raw);
+  return (Number.isFinite(n) && n >= 0 ? n : fallback) * 1024 * 1024;
+}
+
+/** What the owner's automatic SMS still needs ([] = on). */
+export function ownerSetupMissing(env) {
+  const get = (key) => String(env[key] ?? '').trim();
+  const missing = [];
+  if (get('APP_PASSCODE').length < MIN_PASSCODE_LENGTH) missing.push(`APP_PASSCODE (${MIN_PASSCODE_LENGTH}+ characters)`);
+  if (get('JWT_SECRET').length < MIN_SECRET_LENGTH) missing.push(`JWT_SECRET (${MIN_SECRET_LENGTH}+ characters)`);
+  if (!smsConfigured(env)) missing.push('SMSGATE_USER', 'SMSGATE_PASS');
+  return missing;
+}
 
 export function createVercelHandler(env = process.env) {
   const get = (key) => String(env[key] ?? '').trim();
-  const passcode = get('APP_PASSCODE');
-  const secret = get('JWT_SECRET');
   const dbUrl = databaseUrl(env);
   const blobToken = get('BLOB_READ_WRITE_TOKEN');
 
   const setupMissing = [];
-  if (passcode.length < MIN_PASSCODE_LENGTH) setupMissing.push(`APP_PASSCODE (${MIN_PASSCODE_LENGTH}+ characters)`);
-  if (secret.length < MIN_SECRET_LENGTH) setupMissing.push(`JWT_SECRET (${MIN_SECRET_LENGTH}+ characters)`);
   if (!dbUrl) setupMissing.push('DATABASE_URL (connect a Neon database)');
   if (!blobToken) setupMissing.push('BLOB_READ_WRITE_TOKEN (connect a private Blob store)');
-  setupMissing.push(...smsSetupMissing(env));
-
   const ready = setupMissing.length === 0;
+  const ownerOn = ready && ownerSetupMissing(env).length === 0;
+
   return createHandler({
     publicDir: null,
     requireAuth: true,
     setupMissing,
-    auth: ready ? { passcode, sessions: createSessions({ secret, ttlMs: Number(get('JWT_EXPIRATION_MS')) || SESSION_TTL_MS }) } : {},
+    auth: ownerOn ? { passcode: get('APP_PASSCODE'), sessions: createSessions({ secret: get('JWT_SECRET'), ttlMs: Number(get('JWT_EXPIRATION_MS')) || SESSION_TTL_MS }) } : {},
     shares: ready ? neonShares(dbUrl) : { kind: 'database' },
+    rooms: ready ? neonRooms(dbUrl) : null,
     files: ready ? blobFiles({ token: blobToken }) : { kind: 'blob' },
-    channels: createChannels({ sms: smsFromEnv(env) }),
+    channels: createChannels({ sms: ownerOn ? smsFromEnv(env) : null }),
     baseUrl: get('PUBLIC_BASE_URL'),
     dailyLimit: Number(get('DAILY_LIMIT')) || 50,
+    publicStorageBytes: megabytes(get('PUBLIC_STORAGE_MB'), 600),
+    publicDailyDownloadBytes: megabytes(get('PUBLIC_DAILY_DOWNLOAD_MB'), 300),
     cronSecret: get('CRON_SECRET'),
+    trustProxy: true, // Vercel's proxy sets X-Forwarded-For
   });
 }
 

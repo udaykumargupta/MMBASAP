@@ -1,94 +1,112 @@
 # MMBASAP
 
-Send text, links and files from a locked-down laptop (no WhatsApp, only a browser) to **any phone number as an SMS**.
+Send text, links, photos, videos and files from a locked-down laptop (no WhatsApp, only a browser) to **any phone number on WhatsApp or SMS**. Messages go out **from your own number**, it's **free**, and nobody installs anything.
 
 The page has two cards:
 - **What to send:** type or paste text, drop in files.
-- **Deliver to:** pick the channel and type the number.
+- **Deliver to:** pick WhatsApp or SMS and type their number.
 
-Hit Send. Your own Android phone sends the SMS, so the recipient sees **your number** and can reply.
-
-- Short text (up to 3 SMS) arrives as-is, ready to copy.
-- Long text and files arrive as a short link, e.g. `https://your-mmbasap/s/Ab3xK9QpZz`. It opens a page with the full text and **Download** buttons. Links expire after 1 or 7 days, and a daily job deletes them.
-- WhatsApp and Gmail show as "Soon". They will plug into the same channel interface (`lib/channels/`).
+## How it works: pair your phone
 
 ```
-laptop browser ──► MMBASAP (Vercel) ──► api.sms-gate.app ──► your Android phone ──SMS──► recipient
-      └── files PUT straight to private Vercel Blob storage (never through the API)
+One time:  the laptop shows a QR code ─► scan it with your phone's camera ─► the phone is paired
+Each time: type on the laptop ─► it pops up on your phone ─► tap "Open WhatsApp chat" / "Open Messages" ─► Send
 ```
+
+- **Your own phone sends it**, through the real WhatsApp or Messages app, so the recipient gets a completely normal message from you.
+- **No app and no account.** The phone just opens a web page (`/phone`). You can add it to your home screen.
+- **Files:**
+  - On WhatsApp, the phone gets the actual file (photos, videos, PDFs, audio) and shares it into the chat. Office files and zips on Android go as a download link instead.
+  - On SMS, files always go as a download link (SMS can't carry files).
+- **Message text is end-to-end encrypted.** The key lives only in the QR code (the part after `#`, which browsers never send to servers). The server stores only scrambled text; it expires after a day and is deleted by the next daily cleanup.
+- **Files are stored privately but not end-to-end encrypted.** They go to a private store in a random folder. The daily cleanup deletes them after their link expires (1 or 7 days, never more than 8 after upload). Anyone who has the link can download them, a few times a day at most, so don't send anything you wouldn't email.
+- **One tap on the phone is required.** Phones don't let any website send WhatsApp or SMS on its own. That tap is also what keeps this free, legal and safe for your account.
+
+Why not "link your WhatsApp/Messages to the website"? It was researched in October 2026:
+- **Google Messages:** Google switched off QR pairing in 2026, and the only remaining method would mean handing over full Google login cookies.
+- **WhatsApp:** unofficial linking breaks WhatsApp's terms. Accounts are being banned for messaging new numbers, and it would give the server read access to everyone's chats.
+- **iPhone:** has no linking option at all.
+
+### Owner extra: Auto SMS
+The owner can also send SMS **without the tap**. Your own Android phone sends them in the background through [SMS Gateway for Android](https://sms-gate.app). This is optional and locked behind the owner passcode, because it uses the owner's number and SMS pack.
 
 ## Who installs what?
 
 | Who | What they need |
 | --- | --- |
-| **Sender** (you, on any browser) | Nothing. Open your MMBASAP URL, enter the passcode, and send. |
-| **Recipient** | Nothing. A normal SMS arrives from your number. File links open in their browser. |
-| **Owner** (one time) | Install the SMS Gateway app on one Android phone with a SIM. It is the "SIM card" behind your MMBASAP. |
+| **Anyone sending** (any browser) | Nothing. Open the MMBASAP URL. |
+| **Their phone** | Nothing. Scan the QR once with the camera. Works on Android and iPhone. |
+| **Recipient** | Nothing. A normal WhatsApp message or SMS arrives. |
+| **Owner, only for Auto SMS** | The SMS Gateway app on one Android phone (see below). |
 
-MMBASAP is meant to be **self-hosted, one copy per owner**. If you found this repo, deploy your own copy and connect your own phone; your messages go from your number.
-
-## Why your phone and not an SMS API?
-
-Commercial SMS in India must go through TRAI DLT. That needs:
-- a registered business and a Rs 5,900 entity registration
-- pre-approved message templates
-- whitelisted links
-
-You can't send free-form text that way. International routes (Twilio, about Rs 7 per SMS) arrive from random short codes. The [SMS Gateway for Android](https://sms-gate.app) app (open source, Apache-2.0) sends ordinary person-to-person SMS from your SIM instead. That costs nothing beyond your SMS pack.
-
-## Run it on your Mac (dry run first)
+## Run it on your Mac
 
 ```bash
 npm start
 ```
 
-This opens http://localhost:4190. With no `.env` there is no passcode, and SMS are **printed in the terminal** instead of sent, so you can try everything safely. Files are kept under `data/`.
+This opens http://localhost:4190.
+- Data and files are kept under `data/`.
+- Auto SMS is a **dry run** until you add the gateway login: messages are printed in the terminal instead of sent.
 
-To send real SMS locally, copy `.env.example` to `.env` and fill in `SMSGATE_USER` and `SMSGATE_PASS` (see below).
+A phone can only pair with an **https** address, because encryption needs a secure page. So test pairing on your Vercel deployment. On the Mac itself you can open `/phone` in a second browser tab.
 
-You don't need `npm install` locally. The two npm packages (`@neondatabase/serverless`, `@vercel/blob`) are only loaded when a database or Blob store is configured, which is on Vercel.
-
-## Set up your phone (one time, about 5 minutes)
-
-1. On your Android phone, download `app-release.apk` (the latest **stable** release) from [github.com/capcom6/android-sms-gateway/releases](https://github.com/capcom6/android-sms-gateway/releases) and install it.
-2. **Android 15 or later:** Settings → Apps → SMS Gateway → ⋮ → **Allow restricted settings**. Then grant the **SMS** permission. Without the first step, the SMS permission stays greyed out.
-3. Stop Android from killing it:
-   - In the app's Settings, turn battery optimisation **off**.
-   - In your phone's settings, allow **Autostart** and "No restrictions" for the app. The wording differs by brand: Xiaomi, Oppo, Vivo and OnePlus are strict.
-4. In the app, open **Settings → Cloud Server** and switch it on. On the home screen, tap **Offline** so it turns **Online**.
-5. Copy the **username** and **password** shown under Cloud Server into `SMSGATE_USER` and `SMSGATE_PASS`.
-6. Optional settings:
-   - On a dual-SIM phone, set `SMSGATE_SIM=1` or `2`.
-   - If you ever add a second phone, pin one with `SMSGATE_DEVICE_ID`. To find the id, run `curl -u USER:PASS https://api.sms-gate.app/3rdparty/v1/devices`.
-
-Test it by sending yourself a message from MMBASAP. Sending to the phone's **own** number usually works but depends on the carrier. If it doesn't arrive, send to another phone first.
-
-Limits to know about:
-- Android lets an app send about **30 SMS per minute**.
-- Your plan's SMS pack is often **100 per day**. MMBASAP's own `DAILY_LIMIT` defaults to 50.
-- If the phone is offline, messages wait up to an hour, then show as failed.
+You don't need `npm install` locally. The two npm packages (`@neondatabase/serverless`, `@vercel/blob`) only load on Vercel.
 
 ## Deploy to Vercel
 
-1. Push this folder to a GitHub repo and import it in Vercel. Framework preset: **Other**; vercel.json already sets everything.
-2. **Storage:**
-   - **Neon:** Storage → Create → **Neon Postgres**, and connect it. This adds `DATABASE_URL`.
-   - **Blob:** Storage → Create → **Blob** → access **Private**, and connect it. This adds `BLOB_READ_WRITE_TOKEN`.
-3. **Environment variables (Production):**
-   - `APP_PASSCODE`: 6 or more characters. This is what you type to unlock MMBASAP.
+1. Import the GitHub repo in Vercel. Framework preset: **Other**; `vercel.json` sets everything else.
+2. **Storage tab (required):**
+   - **Neon** (Postgres): region **Mumbai (ap-south-1)**, then **Connect**. This adds `DATABASE_URL`.
+   - **Blob:** access **Private**, then **Connect**. This adds `BLOB_READ_WRITE_TOKEN`.
+3. **Settings → Environment Variables (recommended):**
+   - `CRON_SECRET`: any random string. With it, only Vercel's daily job can run the cleanup. Without it, cleanup still runs, but anyone can trigger it; it only deletes what has expired.
+   - **Free-tier limits.** They aim to keep a public MMBASAP inside Vercel Blob's free tier (1 GB stored, 10 GB downloaded a month):
+     - `PUBLIC_STORAGE_MB` (default `600`): the most file storage everyone except the owner can use at once.
+       - Each pairing and each network can use up to 200 MB of it.
+       - Files nobody sends are cleared after 20 minutes.
+       - `0` turns public uploads off.
+     - `PUBLIC_DAILY_DOWNLOAD_MB` (default `300`): download links handed out per day, counted by file size.
+       - The owner's Auto SMS links have a separate allowance of the same size, so the public can't use them up.
+       - Each file can be downloaded at most 5 times a day.
+       - This counts download links, not bytes actually moved, so also set a **usage alert** in Vercel (Settings → Billing).
+4. **Redeploy.** Pair-your-phone now works for everyone.
+5. **Optional, the owner's Auto SMS.** Add these, then redeploy:
+   - `APP_PASSCODE`: 6 or more characters. You unlock Auto SMS with it via the **Owner** button.
    - `JWT_SECRET`: generate with `openssl rand -base64 48`.
-   - `SMSGATE_USER` and `SMSGATE_PASS`, from your phone.
-   - `CRON_SECRET`: any random string. Vercel sends it to the daily cleanup job.
-   - Optional: `PUBLIC_BASE_URL` (your custom domain), `DAILY_LIMIT`, `SMSGATE_SIM`, `SMSGATE_DEVICE_ID`.
-4. Redeploy. Until every required setting is present, the site only shows the list of what's missing.
-5. **Recommended:** add one **Firewall → Rate limit** rule (the free plan allows one) covering `/api/login`, `/api/send` and `/s/`, for example 30 requests per minute per IP.
-6. **Optional:** a custom domain. A `mmbasap.yourname.in` link in an SMS looks more trustworthy, and carriers are less likely to flag it, than `*.vercel.app`.
+   - `SMSGATE_USER` and `SMSGATE_PASS`, from your phone (see below).
+   - Optional: `SMSGATE_SIM` (`1` or `2`), `DAILY_LIMIT` (default 50 SMS a day).
+6. **Recommended:** add one **Firewall → Rate limit** rule covering only the costly routes, for example 60 requests per minute per IP:
+   - `/api/upload-url`
+   - `/api/links`
+   - `/s/*/file/*`
+
+   Leave the phone's and laptop's status checks alone: a paired laptop and phone together check about 60 times a minute, and an office shares one IP.
+
+A random secret for any of these, copied to your clipboard without showing it:
+```bash
+openssl rand -base64 48 | tr -d '\n' | pbcopy
+```
 
 ### First checks after deploying
-- **Open the site from the work laptop.** Some company web filters block `*.vercel.app` or newly registered domains. If it's blocked, try a custom domain.
-- **Attach a small PDF.** The upload goes straight from your browser to Vercel Blob using a presigned URL. MMBASAP sends the same headers as Vercel's own browser uploader, but this is the one part that can't be tested locally.
-  - If the upload fails with a CORS or 403 error, note the browser console message.
-  - The fix is then to swap `blobFiles` in `lib/files.js` for an S3-compatible store (Neon Object Storage or Cloudflare R2). The browser-side code doesn't change.
+- **Open the site on the work laptop.** Some company filters block `*.vercel.app`; a custom domain can help.
+- **Pair your phone:** scan the QR code and send yourself a text. The laptop should show "On your phone ✓".
+- **Attach a small video:**
+  - Laptop side: the upload goes straight from the browser to Vercel Blob, and can't be bigger than the size it declared.
+  - Phone side: you should see **Share file to WhatsApp**. If you see a download link instead, your phone's browser couldn't fetch the file directly; the link still works.
+
+## Set up the phone for Auto SMS (owner only, about 5 minutes)
+
+1. On your Android phone, download `app-release.apk` (latest **stable** release) from [github.com/capcom6/android-sms-gateway/releases](https://github.com/capcom6/android-sms-gateway/releases) and install it. Make sure it is **SMS Gateway** by capcom6, not a look-alike.
+2. **Android 13 and later:** Settings → Apps → SMS Gateway → ⋮ → **Allow restricted settings**, then grant **SMS**.
+3. Turn battery optimisation **off** for the app, and allow **Autostart** if your phone has it.
+4. In the app, open **Settings → Cloud server** and switch it on. On the home screen, tap **Offline** so it turns **Online**.
+5. Copy the **Username** and **Password** shown there into `SMSGATE_USER` and `SMSGATE_PASS`. Treat them like a password: anyone with both could send SMS from your number.
+
+Limits:
+- Android allows about 30 SMS per minute.
+- Many plans include about 100 SMS a day.
+- If the phone is offline, messages wait up to an hour, then fail.
 
 ## Development
 
@@ -96,26 +114,29 @@ Limits to know about:
 npm test
 ```
 
-This uses node:test, with no installs needed. It covers:
+This uses node:test with no installs. It covers:
+- encryption and pairing links
+- the QR code
 - number formats and SMS part counting
-- the gateway adapter against a stubbed API
-- every route end to end, including uploads, downloads, expiry, daily limit, login lockout and cross-site refusal
-- escaping on the share page
-- the deployment's fail-closed setup check
+- the gateway adapter
+- every route end to end: rooms, uploads, budgets, links, expiry and cleanup, Auto SMS, sign-in lockout, cross-site refusal
+- the deployment's fail-closed setup
 
 | Path | What it is |
 | --- | --- |
-| `public/` | The page: vanilla JS, no build step. `js/sms.js` is shared with the server, so the preview matches what's sent. |
+| `public/index.html`, `js/app.js` | Laptop page: the two cards, pairing QR, status. |
+| `public/phone.html`, `js/phone.js` | Phone page: receives messages, opens WhatsApp/Messages, shares files. |
+| `public/js/pair.js` | Pairing and AES-GCM encryption (Web Crypto), wa.me and sms: links. Shared with tests. |
+| `public/js/sms.js` | Number formats and SMS part counting. Shared with the server. |
+| `public/vendor/qrcode.js` | QR encoder (MIT, Kazuhiko Arase), vendored so no CDN is needed. |
 | `lib/app.js` | All routes. |
-| `lib/channels/` | `sms-gate.js` (your phone), `console.js` (dry run), `index.js` (the registry; WhatsApp and Gmail go here later). |
-| `lib/shares.js` | Send history and share pages: JSON file locally, Neon on Vercel. |
-| `lib/files.js` | Attachments: local disk with signed links locally, private Vercel Blob on Vercel. |
-| `lib/share-page.js` | The page recipients open. |
-| `api/index.js` | Vercel entry; fails closed until configured. |
+| `lib/rooms.js` | Rooms, encrypted messages, uploads, daily budget (JSON locally, Neon on Vercel). |
+| `lib/shares.js` | Download-link pages and Auto SMS history. |
+| `lib/files.js` | Attachments: local disk with signed links, or private Vercel Blob. |
+| `lib/channels/` | Owner's SMS gateway (`sms-gate.js`) and dry run (`console.js`). |
+| `api/index.js` | Vercel entry; fails closed until Neon and Blob are connected. |
 
 ## Roadmap
-- **Gmail/email:** via Resend (real attachments; free tier of 3,000 a month).
-- **WhatsApp:** via Meta's Cloud API with a second number. It's free inside the 24-hour window, for up to 1,000 messages a month.
-- **Inbound:** forward SMS that arrive on your phone (gateway `sms:received` webhook), WhatsApp or email into another channel.
-- **Push to your own phone:** ntfy or Web Push, with no SMS limits.
-- **Flutter Android app:** a share-target app that calls the same API.
+- **Gmail/email:** via Resend (real attachments).
+- **Phone notifications:** Web Push, so new messages ring the phone even when the page is closed.
+- **Flutter Android app:** a share-target app.

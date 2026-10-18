@@ -1,12 +1,12 @@
-// Talking to the server: config, the passcode gate, and an authenticated
-// fetch. The session token lives in localStorage and goes out as a Bearer
-// header; any 401 signs out and shows the passcode page again.
-import { h, icon, logoSvg } from './ui.js';
+// Talking to the server: config, the owner's passcode sign-in, and fetch
+// with the owner's session token. Pair-your-phone needs no sign-in; the
+// token only unlocks Auto SMS. Any 401 on an owner call signs out.
+import { h } from './ui.js';
 
 const TOKEN_KEY = 'mmbasap_jwt';
 let token = null;
 try { token = localStorage.getItem(TOKEN_KEY); } catch { /* storage unavailable */ }
-let config = { authRequired: false, setupMissing: [], channels: [], limits: {} };
+let config = { setupMissing: [], channels: [], limits: {}, owner: { available: false } };
 const signOutListeners = new Set();
 
 export async function loadConfig() {
@@ -25,23 +25,21 @@ function claimsOf(t) {
     return null;
   }
 }
-/** True when the app can be used: no passcode needed, or a live session token. */
-export function signedIn() {
-  if (!config.authRequired) return true;
+/** True when the owner's Auto SMS is usable here: no sign-in needed, or a live session. */
+export function ownerSignedIn() {
+  if (!config.owner?.available) return false;
+  if (!config.owner.signInRequired) return true;
   const c = token && claimsOf(token);
   return Boolean(c && c.exp * 1000 > Date.now());
 }
 
-/** fetch() for our API, with the session token. Returns { res, body }. */
+/** fetch() for our API (adds the owner token when there is one). Returns { res, body }. */
 export async function api(path, { method = 'GET', json } = {}) {
   const headers = {};
   if (token) headers.Authorization = `Bearer ${token}`;
   if (json !== undefined) headers['Content-Type'] = 'application/json';
   const res = await fetch(path, { method, headers, body: json === undefined ? undefined : JSON.stringify(json) });
-  if (res.status === 401 && config.authRequired) {
-    signOut({ expired: true });
-    throw new Error('Your session expired — enter the passcode again.');
-  }
+  if (res.status === 401 && token) signOut({ expired: true });
   const body = await res.json().catch(() => ({}));
   return { res, body };
 }
@@ -53,28 +51,15 @@ export function signOut({ expired = false } = {}) {
   for (const fn of signOutListeners) fn({ expired });
 }
 
-/** Full-screen passcode page. Calls onSignedIn() once the server accepts the passcode. */
-export function renderGate(root, { onSignedIn, expired = false }) {
-  const error = h('div', { class: 'auth-error', role: 'alert' }, expired ? 'Your session expired. Enter the passcode again.' : '');
+/** The owner's passcode form. Calls onSignedIn() once the server accepts it. */
+export function passcodeForm({ onSignedIn }) {
+  const error = h('div', { class: 'auth-error', role: 'alert' });
   const input = h('input', {
-    class: 'field', type: 'password', id: 'passcode', autocomplete: 'current-password', required: true,
-    placeholder: 'Passcode', 'aria-label': 'Passcode',
+    class: 'field', type: 'password', autocomplete: 'current-password', required: true,
+    placeholder: 'Owner passcode', 'aria-label': 'Owner passcode',
   });
   const button = h('button', { class: 'btn primary', type: 'submit' }, 'Unlock');
   const form = h('form', { class: 'auth-form' }, input, button);
-  const missing = config.setupMissing?.length
-    ? h('div', { class: 'auth-missing' }, `This deployment isn’t set up yet. Add these environment variables and redeploy: ${config.setupMissing.join(', ')}.`)
-    : null;
-  root.replaceChildren(h('div', { class: 'auth-gate' },
-    h('div', { class: 'auth-card' },
-      h('div', { class: 'auth-logo', html: logoSvg() }),
-      h('h1', {}, 'MMBASAP'),
-      h('p', { class: 'auth-intro' }, 'Send text, links and files from this browser to any phone.'),
-      missing || form,
-      error,
-      h('p', { class: 'auth-foot', html: `${icon('lock')}<span>Only someone with the passcode can send from here.</span>` }))));
-  if (missing) return;
-  input.focus();
   form.addEventListener('submit', async (e) => {
     e.preventDefault();
     error.textContent = '';
@@ -95,4 +80,5 @@ export function renderGate(root, { onSignedIn, expired = false }) {
       button.disabled = false;
     }
   });
+  return { el: h('div', { class: 'passcode' }, form, error), focus: () => input.focus() };
 }
