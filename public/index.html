@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="en-IN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>MMBASAP</title>
+  <meta name="description" content="MMBASAP — send text, links and files from this browser to any phone as an SMS">
+  <meta name="theme-color" content="#0e1014">
+  <meta name="color-scheme" content="dark light">
+  <meta name="robots" content="noindex">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%233d5afe'/%3E%3Cpath d='M8 16h13M16 10l6 6-6 6' fill='none' stroke='white' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
+  <link rel="stylesheet" href="/css/app.css">
+  <script>
+    // Theme before first paint: the saved choice, else the system's.
+    try {
+      var saved = localStorage.getItem('mmbasap.theme');
+      var t = saved === 'light' || saved === 'dark' ? saved : (matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark');
+      document.documentElement.dataset.theme = t;
+      document.querySelector('meta[name="theme-color"]').content = t === 'light' ? '#f4f5f8' : '#0e1014';
+    } catch (e) { document.documentElement.dataset.theme = 'dark'; }
+  </script>
+</head>
+<body>
+  <div id="app" aria-busy="true">
+    <div class="boot" role="status" aria-label="Loading">
+      <div class="boot-card skel"></div>
+      <div class="boot-card skel"></div>
+    </div>
+  </div>
+  <div id="toasts" class="toast-host" role="status" aria-live="polite"></div>
+  <script type="module" src="/js/app.js"></script>
+</body>
+</html>

@@ -1,0 +1,19 @@
+{
+  "name": "mmbasap",
+  "version": "0.1.0",
+  "private": true,
+  "description": "MMBASAP — send text, links and files from a locked-down laptop to any phone as an SMS.",
+  "type": "module",
+  "scripts": {
+    "start": "node local-server.js --open",
+    "serve": "node local-server.js",
+    "test": "node --test test/"
+  },
+  "engines": {
+    "node": ">=20.12"
+  },
+  "dependencies": {
+    "@neondatabase/serverless": "1.2.0",
+    "@vercel/blob": "2.8.0"
+  }
+}

@@ -1,0 +1,9 @@
+# Never upload local data or secrets with `vercel deploy`.
+data/
+.env
+.env.*
+!.env.example
+node_modules/
+test/
+local-server.js
+.DS_Store
